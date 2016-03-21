@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿
+using Microsoft.Win32;
 using MongoDB.Driver;
 using Newtonsoft.Json.Linq;
 using System;
@@ -14,39 +15,53 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using Excel;
 
 namespace ISBNSCAN
 {
     class Program
     {
+        /// <summary>
+        /// 网络连接失败提示
+        /// </summary>
+        private static string info_networkcheckfail = "网络连接异常，请检查您的电脑是否已经正确接入互联网。";
+        /// <summary>
+        /// 实际是下载远端ISBN查询服务器网页失败提示
+        /// </summary>
+        private static string info_isbnservercheckfail = "没有找到这本书的信息！\n1、请确保您的计算机已经接入互联网\n2、请确保您的书籍为正版书籍\n3、请换本书籍试试";
+        /// <summary>
+        /// 没有注册或者是试用期结束
+        /// </summary>
+        private static string info_notregedit = "您还没有注册软件，是否注册？按Enter键立刻注册软件";
+        /// <summary>
+        /// 软件可供试用的次数
+        /// </summary>
+        private static int softwareOntrail = 100;
+
         static void Main(string[] args)
         {
             MainStart();
         }
+
+
         /// <summary>
         /// 启动主程序
         /// </summary>
         private static void MainStart()
         {
-            if (registerdoCheck())//如果软件已经注册
+            if (Comm.registerdoCheck())//如果软件已经注册
             {
                 Console.Title = "ISBN数据查询V1.0.4";
                 jsonReadNetworkData();
             }
             else
             {
-
-                Console.Title = string.Format("ISBN数据查询V1.0.4[试用版{0}/200次查询*]", ReadRegedit());
+                Console.Title = string.Format("ISBN数据查询V1.0.4[试用版{0}/{1}次查询*]", Comm.ReadRegedit(), softwareOntrail);
                 Console.WriteLine("继续试用？按Y键后回车");
                 Console.WriteLine("马上注册？按S键后回车");
                 string keyboard = Console.ReadLine();
                 if (keyboard.ToUpper() == "Y")
                 {
-
-                    // Console.WriteLine(judgeExcelVersion.GetOfficePath());
                     jsonReadNetworkData();
-
                 }
                 if (keyboard.ToUpper() == "S")
                 {
@@ -67,136 +82,237 @@ namespace ISBNSCAN
 
 
 
-            string b_id = "";//豆瓣编的ID号码
-            string b_isbn13 = "";//isbn13位
-            string b_isbn10 = "";//isbn10位
-            string b_title = "";//图书书名
-            string b_origin_title = "";
-            string b_alt_title = "";
-            string b_subtitle = "";
-            string b_url = "";
-            string b_images_large = "";//大图片地址
-            string b_images_medium = "";//中图片地址
-            string b_images_small = "";//小图片地址
-            string b_alt = "";//alt表示 http://book.douban.com/subject/1003078 中的1003078
-            string b_author = "";//作者名称
-            string b_publisher = "";//出版社
-            string b_translator = "";//翻译人
-            string b_pubdate = "";//出版日期
-            string b_price = "";//价格
-            string b_pages = "";//书页
-            string b_author_intro = "";//作者简介
-            string b_summary = "";//图书简介
-            string b_tags = "";//分类
-            string b_binding = "";//精装还是平装
-            string b_catalog = "";//序言目录之类
-
-            bool xmldatanull = false;//xml数据文件中是否有isbn查询的记录，false无 true有
-
-            try
+            if (judgeNetWork.ComputerNetwork())//网络连接情况判定
             {
-               
-                string url = "https://api.douban.com/v2/book/isbn/:" + isbn;//豆瓣图书API接口获取JSON数据
-
-                Console.WriteLine("查找ISBN号为{0}的书籍…",isbn);//下载网页前，显示提示信息！
-                string jsonstr = downLoadPage(url);
-                JObject jo = JObject.Parse(jsonstr);
-
-                b_id = jo["id"] != null ? jo["id"].ToString() : "";
-                b_isbn13 = jo["isbn13"] != null ? jo["isbn13"].ToString() : "";
-                b_isbn10 = jo["isbn10"] != null ? jo["isbn10"].ToString() : "";
-
-                b_title = jo["title"].ToString() == "" ? "" : jo["title"].ToString();
-                b_origin_title = jo["origin_title"].ToString() == "" ? "" : jo["origin_title"].ToString();
-                b_alt_title = jo["alt_title"].ToString() == "" ? "" : jo["alt_title"].ToString();
-                b_subtitle = jo["subtitle"].ToString() == "" ? "" : jo["subtitle"].ToString();
-                b_url = jo["url"].ToString() == "" ? "" : jo["url"].ToString();
-
-                b_images_large = jo["images"]["large"] != null ? jo["images"]["large"].ToString() : "";
-                b_images_medium = jo["images"]["medium"] != null ? jo["images"]["medium"].ToString() : "";
-                b_images_small = jo["images"]["small"] != null ? jo["images"]["small"].ToString() : "";
-                b_alt = jo["alt"] != null ? jo["alt"].ToString() : "";
-                try { b_author = jo["author"][0] != null ? jo["author"][0].ToString() : ""; }
-                catch (Exception e) { }
-                b_publisher = jo["publisher"] != null ? jo["publisher"].ToString() : "";
-                b_translator = jo["translator"] != null ? jo["translator"].ToString() : "";
-                b_pubdate = jo["pubdate"].ToString() == "" ? "" : jo["pubdate"].ToString();
-                b_price = jo["price"].ToString() == "" ? "" : jo["price"].ToString();
-                b_pages = jo["pages"].ToString() == "" ? "" : jo["pages"].ToString();
-                b_author_intro = jo["author_intro"].ToString() == "" ? "" : jo["author_intro"].ToString();
-                b_summary = jo["summary"] == null ? "" : jo["summary"].ToString();
-
-                string tags0 = "";
-                try { tags0 = jo["tags"][0]["name"].ToString() == "" ? "" : "|" + jo["tags"][0]["name"].ToString(); }
-                catch (Exception e) { tags0 = ""; }
-                string tags1 = "";
-                try { tags1 = jo["tags"][1]["name"].ToString() == "" ? "" : "|" + jo["tags"][1]["name"].ToString(); }
-                catch (Exception e) { tags1 = ""; }
-                string tags2 = "";
-                try { tags2 = jo["tags"][2]["name"].ToString() == "" ? "" : "|" + jo["tags"][2]["name"].ToString(); }
-                catch (Exception e) { tags2 = ""; }
-                string tags3 = "";
-                try { tags3 = jo["tags"][3]["name"].ToString() == "" ? "" : "|" + jo["tags"][3]["name"].ToString(); }
-                catch (Exception e) { tags3 = ""; }
-                string tags4 = "";
-                try { tags4 = jo["tags"][4]["name"].ToString() == "" ? "" : "|" + jo["tags"][4]["name"].ToString(); }
-                catch (Exception e) { tags4 = ""; }
-                string tags5 = "";
-                try { tags5 = jo["tags"][5]["name"].ToString() == "" ? "" : "|" + jo["tags"][5]["name"].ToString(); }
-                catch (Exception e) { tags5 = ""; }
-                string tags6 = "";
-                try { tags6 = jo["tags"][6]["name"].ToString() == "" ? "" : "|" + jo["tags"][6]["name"].ToString(); }
-                catch (Exception e) { tags6 = ""; }
-                string tags7 = "";
-                try { tags7 = jo["tags"][7]["name"].ToString() == "" ? "" : "|" + jo["tags"][7]["name"].ToString(); }
-                catch (Exception e) { tags7 = ""; }
-                b_tags = tags0 + tags1 + tags2 + tags3 + tags4 + tags5 + tags6 + tags7;
-                b_binding = jo["binding"] != null ? jo["binding"].ToString() : "";
-                b_catalog = jo["catalog"].ToString() == "" ? "" : jo["catalog"].ToString();
-
-
-                if (isbn.Length == 13)
+                if (ISBNcheck.CheckISBN(isbn))//ISBN本地校验
                 {
-                    b_isbn13 = isbn;
+                    string b_id = "";//豆瓣编的ID号码
+                    string b_isbn13 = "";//isbn13位
+                    string b_isbn10 = "";//isbn10位
+                    string b_title = "";//图书书名
+                    string b_origin_title = "";
+                    string b_alt_title = "";
+                    string b_subtitle = "";
+                    string b_url = "";
+                    string b_images_large = "";//大图片地址
+                    string b_images_medium = "";//中图片地址
+                    string b_images_small = "";//小图片地址
+                    string b_alt = "";//alt表示 http://book.douban.com/subject/1003078 中的1003078
+                    string b_author = "";//作者名称
+                    string b_publisher = "";//出版社
+                    string b_translator = "";//翻译人
+                    string b_pubdate = "";//出版日期
+                    string b_price = "";//价格
+                    string b_pages = "";//书页
+                    string b_author_intro = "";//作者简介
+                    string b_summary = "";//图书简介
+                    string b_tags = "";//分类
+                    string b_binding = "";//精装还是平装
+                    string b_catalog = "";//序言目录之类
+
+
+                    if (xmlControl.xmlHaveRecord(xmlControl.localPath, isbn))
+                    {
+                        XElement rootNode = XElement.Load(xmlControl.localPath);
+                        IEnumerable<XElement> myTargetNodes = from myTarget in rootNode.Descendants("first")
+                                                                  //where (myTarget.Element("b_id").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn10").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn13").Value.Trim().Equals(isbn)) && myTarget.HasElements
+                                                              where (myTarget.Element("b_isbn10").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn13").Value.Trim().Equals(isbn))
+                                                              select myTarget;
+
+                        foreach (XElement node in myTargetNodes)
+                        {
+                            b_id = node.Element("b_id").Value.ToString().Trim();
+                            b_isbn10 = node.Element("b_isbn10").Value.ToString().Trim();
+                            b_isbn13 = node.Element("b_isbn13").Value.ToString().Trim();
+                            b_title = node.Element("b_title").Value.ToString().Trim();
+                            b_origin_title = node.Element("b_origin_title").Value.ToString().Trim();
+                            b_alt_title = node.Element("b_alt_title").Value.ToString().Trim();
+                            b_subtitle = node.Element("b_subtitle").Value.ToString().Trim();
+                            b_url = node.Element("b_url").Value.ToString().Trim();
+                            b_alt = node.Element("b_alt").Value.ToString().Trim();
+                            b_images_large = node.Element("b_images_large").Value.ToString().Trim();
+                            b_author = node.Element("b_author").Value.ToString().Trim();
+                            b_publisher = node.Element("b_publisher").Value.ToString().Trim();
+                            b_translator = node.Element("b_translator").Value.ToString().Trim();
+                            b_pubdate = node.Element("b_pubdate").Value.ToString().Trim();
+                            b_price = node.Element("b_price").Value.ToString().Trim();
+                            b_pages = node.Element("b_pages").Value.ToString().Trim();
+                            b_author_intro = node.Element("b_author_intro").Value.ToString().Trim();
+                            b_summary = node.Element("b_summary").Value.ToString().Trim();
+                            b_tags = node.Element("b_tags").Value.ToString().Trim();
+                            b_binding = node.Element("b_binding").Value.ToString().Trim();
+                            b_catalog = node.Element("b_catalog").Value.ToString().Trim();
+                        }
+                        Console.WriteLine("本地查询");
+                    }
+                    else //如果本地的XML文件查找不到数据，就执行网络查找
+                    {
+                            string url = "https://api.douban.com/v2/book/isbn/:" + isbn;//豆瓣图书API接口获取JSON数据
+
+                            Console.WriteLine("查找ISBN号为{0}的书籍…", isbn);//下载网页前，显示提示信息！
+                            string jsonstr = downLoadPage(url);
+                            JObject jo = JObject.Parse(jsonstr);
+
+                            b_id = jo["id"] != null ? jo["id"].ToString() : "";
+                            b_isbn13 = jo["isbn13"] != null ? jo["isbn13"].ToString() : "";
+                            b_isbn10 = jo["isbn10"] != null ? jo["isbn10"].ToString() : "";
+
+                            b_title = jo["title"].ToString() == "" ? "" : jo["title"].ToString();
+                            b_origin_title = jo["origin_title"].ToString() == "" ? "" : jo["origin_title"].ToString();
+                            b_alt_title = jo["alt_title"].ToString() == "" ? "" : jo["alt_title"].ToString();
+                            b_subtitle = jo["subtitle"].ToString() == "" ? "" : jo["subtitle"].ToString();
+                            b_url = jo["url"].ToString() == "" ? "" : jo["url"].ToString();
+
+                            b_images_large = jo["images"]["large"] != null ? jo["images"]["large"].ToString() : "";
+                            b_images_medium = jo["images"]["medium"] != null ? jo["images"]["medium"].ToString() : "";
+                            b_images_small = jo["images"]["small"] != null ? jo["images"]["small"].ToString() : "";
+                            b_alt = jo["alt"] != null ? jo["alt"].ToString() : "";
+                            try { b_author = jo["author"][0] != null ? jo["author"][0].ToString() : ""; }
+                            catch (Exception e) { }
+                            b_publisher = jo["publisher"] != null ? jo["publisher"].ToString() : "";
+                            b_translator = jo["translator"] != null ? jo["translator"].ToString() : "";
+                            b_pubdate = jo["pubdate"].ToString() == "" ? "" : jo["pubdate"].ToString();
+                            b_price = jo["price"].ToString() == "" ? "" : jo["price"].ToString();
+                            b_pages = jo["pages"].ToString() == "" ? "" : jo["pages"].ToString();
+                            b_author_intro = jo["author_intro"].ToString() == "" ? "" : jo["author_intro"].ToString();
+                            b_summary = jo["summary"] == null ? "" : jo["summary"].ToString();
+
+                            string tags0 = "";
+                            try { tags0 = jo["tags"][0]["name"].ToString() == "" ? "" : "|" + jo["tags"][0]["name"].ToString(); }
+                            catch (Exception e) { tags0 = ""; }
+                            string tags1 = "";
+                            try { tags1 = jo["tags"][1]["name"].ToString() == "" ? "" : "|" + jo["tags"][1]["name"].ToString(); }
+                            catch (Exception e) { tags1 = ""; }
+                            string tags2 = "";
+                            try { tags2 = jo["tags"][2]["name"].ToString() == "" ? "" : "|" + jo["tags"][2]["name"].ToString(); }
+                            catch (Exception e) { tags2 = ""; }
+                            string tags3 = "";
+                            try { tags3 = jo["tags"][3]["name"].ToString() == "" ? "" : "|" + jo["tags"][3]["name"].ToString(); }
+                            catch (Exception e) { tags3 = ""; }
+                            string tags4 = "";
+                            try { tags4 = jo["tags"][4]["name"].ToString() == "" ? "" : "|" + jo["tags"][4]["name"].ToString(); }
+                            catch (Exception e) { tags4 = ""; }
+                            string tags5 = "";
+                            try { tags5 = jo["tags"][5]["name"].ToString() == "" ? "" : "|" + jo["tags"][5]["name"].ToString(); }
+                            catch (Exception e) { tags5 = ""; }
+                            string tags6 = "";
+                            try { tags6 = jo["tags"][6]["name"].ToString() == "" ? "" : "|" + jo["tags"][6]["name"].ToString(); }
+                            catch (Exception e) { tags6 = ""; }
+                            string tags7 = "";
+                            try { tags7 = jo["tags"][7]["name"].ToString() == "" ? "" : "|" + jo["tags"][7]["name"].ToString(); }
+                            catch (Exception e) { tags7 = ""; }
+                            b_tags = tags0 + tags1 + tags2 + tags3 + tags4 + tags5 + tags6 + tags7;
+                            b_binding = jo["binding"] != null ? jo["binding"].ToString() : "";
+                            b_catalog = jo["catalog"].ToString() == "" ? "" : jo["catalog"].ToString();
+
+
+                            if (isbn.Length == 13)
+                            {
+                                b_isbn13 = isbn;
+                            }
+                            else if (isbn.Length == 10)
+                            {
+                                b_isbn10 = isbn;
+                            }
+
+                            //读取软件在注册表中已经试用的次数
+                            int OntrailCount = Comm.ReadRegedit();
+                            if (!Comm.registerdoCheck() && OntrailCount <= softwareOntrail && b_title != "")
+                            {
+                                //只要返回成功标题，就在试用软件计数器加1
+                                Comm.AddCount();
+                                Console.Title = string.Format("ISBN数据查询V1.0.4[试用版{0}/{1}次查询*]", OntrailCount, softwareOntrail);
+                            }
+
+                            //不存在记录即可插入到本地XML数据文件中
+                            xmlControl.insterXml(
+                                                b_id,
+                                                b_isbn10,
+                                                b_isbn13,
+                                                b_title,
+                                                b_origin_title,
+                                                b_alt_title,
+                                                b_subtitle,
+                                                b_url,
+                                                b_alt,
+                                                b_images_large,
+                                                b_author,
+                                                b_publisher,
+                                                b_translator,
+                                                b_pubdate,
+                                                b_price,
+                                                b_pages,
+                                                b_author_intro,
+                                                b_summary,
+                                                b_tags,
+                                                b_binding,
+                                               b_catalog
+                                            );
+                        Console.WriteLine("网络查询");
+
+                    }
+
+                    ///向客户端的Excel中插入数据
+                    OledbInsertExcel(
+                         isbn,
+                         b_title,
+                         b_author,
+                         b_pubdate,
+                         b_price,
+                         b_publisher,
+                         b_summary,
+                         b_images_small,
+                         b_images_large,
+                         b_images_medium,
+                         b_alt
+                         );
+                    ///向kkjspt.com服务器提交数据
+                    submitDataToServer.loadUrl("http://www.kkjspt.cn/kukusoft/isbnsearch/V1.0.3/isbnsubmit/",
+                     "b_id=" + b_id +
+                     "&b_isbn13=" + b_isbn13 +
+                     "&b_isbn10=" + b_isbn10 +
+                     "&b_title=" + b_title +
+                     "&b_origin_title=" + b_origin_title +
+                     "&b_alt_title=" + b_alt_title +
+                     "&b_subtitle=" + b_subtitle +
+                     "&b_url=" + b_url +
+                     "&b_alt=" + b_alt +
+                     "&b_images_large=" + b_images_large +
+                     "&b_author=" + b_author +
+                     "&b_publisher=" + b_publisher +
+                     "&b_translator=" + b_translator +
+                     "&b_pubdate=" + b_pubdate +
+                     "&b_price=" + b_price +
+                     "&b_pages=" + b_pages +
+                     "&b_author_intro=" + b_author_intro +
+                     "&b_summary=" + b_summary +
+                     "&b_tags=" + b_tags +
+                     "&b_binding=" + b_binding +
+                     "&b_catalog=" + b_catalog
+                     , Encoding.UTF8
+                );
+                    Console.ForegroundColor = ConsoleColor.Cyan;  //设置字体颜色为粉天蓝色
+                    Console.WriteLine("该书已经成功录入到本地数据表中！");
+                    Console.WriteLine("═════════════════════════════════════");
+                    jsonReadNetworkData();
                 }
-                else if (isbn.Length == 10)
+                else
                 {
-                    b_isbn10 = isbn;
+                    Console.ForegroundColor = ConsoleColor.Red;  //设置字体颜色为红色
+                    Console.WriteLine("ISBN码格式错误，您输入的不是标准的ISBN码，请核对后重新输入！");
+                    jsonReadNetworkData();
                 }
-
-
-                ///向客户端的Excel中插入数据
-                OledbInsertExcel(
-                     isbn,
-                     b_title,
-                     b_author,
-                     b_pubdate,
-                     b_price,
-                     b_publisher,
-                     b_summary,
-                     b_images_small,
-                     b_images_large,
-                     b_images_medium,
-                     b_alt
-                     );
-                Console.ForegroundColor = ConsoleColor.Cyan;  //设置字体颜色为粉天蓝色
-                Console.WriteLine("该书已经成功录入到本地数据表中！");
-                Console.WriteLine("═════════════════════════════════════");
-                jsonReadNetworkData();
             }
-            catch (Exception ex)
+            else
             {
-                //Console.WriteLine("容易发生超时错误" + ex.ToString());
                 Console.ForegroundColor = ConsoleColor.Red;  //设置字体颜色为红色
-                Console.WriteLine("查询失败可能的原因：");
-                Console.WriteLine("1、请确保您输入的ISBN码正确！ISBN码由10位或者13为数字组成");
-                Console.WriteLine("2、请确保您的书籍为正版书籍");
-                Console.WriteLine("3、网络异常，请按Enter键后重试");
-                Console.WriteLine("按 Enter键 继续查询");
-                Console.ReadKey();
+                Console.WriteLine(info_networkcheckfail);
                 jsonReadNetworkData();
             }
+
         }
+    
+        
         #endregion
 
 
@@ -219,8 +335,18 @@ namespace ISBNSCAN
         /// <param name="large"></param>
         /// <param name="medium"></param>
         /// <param name="alt"></param>
-        public static void OledbInsertExcel(string isbn, string title, string author, string pubdate,
-            string price, string publisher, string summary, string small, string large, string medium, string alt)
+        public static void OledbInsertExcel(
+            string isbn, 
+            string title,
+            string author,
+            string pubdate,
+            string price,
+            string publisher,
+            string summary,
+            string small,
+            string large,
+            string medium,
+            string alt)
         {
             try
             {
@@ -258,7 +384,7 @@ namespace ISBNSCAN
                     OleDbCommand mycommand = new OleDbCommand(Sql, thisconnection);
                     mycommand.ExecuteNonQuery();
                     thisconnection.Close();
-                    Console.WriteLine("查询结束");
+                    Console.WriteLine("查询成功！");
                 }
                 else
                 {
@@ -300,174 +426,64 @@ namespace ISBNSCAN
         public static string downLoadPage(string url)
         {
             string strBuff = "";
-            
-            try
+
+            if (judgeNetWork.ComputerNetwork())
             {
 
-                Uri httpURL = new Uri(url);
-
-                char[] cbuffer = new char[256];
-                int byteRead = 0;
-                //string filename = @"c:\log.txt";
-
-                ///HttpWebRequest类继承于WebRequest，并没有自己的构造函数，需通过WebRequest的Creat方法 建立，并进行强制的类型转换 
-                HttpWebRequest httpReq = (HttpWebRequest)WebRequest.Create(httpURL);
-                ///通过HttpWebRequest的GetResponse()方法建立HttpWebResponse,强制类型转换
-                httpReq.Timeout = 100000;
-                HttpWebResponse httpResp = (HttpWebResponse)httpReq.GetResponse();
-                ///GetResponseStream()方法获取HTTP响应的数据流,并尝试取得URL中所指定的网页内容
-
-                ///若成功取得网页的内容，则以System.IO.Stream形式返回，若失败则产生ProtoclViolationException错 误。在此正确的做法应将以下的代码放到一个try块中处理。这里简单处理 
-                Stream respStream = httpResp.GetResponseStream();
-
-                ///返回的内容是Stream形式的，所以可以利用StreamReader类获取GetResponseStream的内容，并以
-
-                //StreamReader类的Read方法依次读取网页源程序代码每一行的内容，直至行尾（读取的编码格式：UTF8） 
-                StreamReader respStreamReader = new StreamReader(respStream, Encoding.UTF8);
-
-                byteRead = respStreamReader.Read(cbuffer, 0, 256);
-
-                while (byteRead != 0)
+                try
                 {
-                    string strResp = new string(cbuffer, 0, byteRead);
-                    strBuff = strBuff + strResp;
+
+                    Uri httpURL = new Uri(url);
+                    char[] cbuffer = new char[256];
+                    int byteRead = 0;
+                    //string filename = @"c:\log.txt";
+
+                    ///HttpWebRequest类继承于WebRequest，并没有自己的构造函数，需通过WebRequest的Creat方法 建立，并进行强制的类型转换 
+                    HttpWebRequest httpReq = (HttpWebRequest)WebRequest.Create(httpURL);
+                    ///通过HttpWebRequest的GetResponse()方法建立HttpWebResponse,强制类型转换
+                    httpReq.Timeout = 100000;
+                    HttpWebResponse httpResp = (HttpWebResponse)httpReq.GetResponse();
+                    ///GetResponseStream()方法获取HTTP响应的数据流,并尝试取得URL中所指定的网页内容
+
+                    ///若成功取得网页的内容，则以System.IO.Stream形式返回，若失败则产生ProtoclViolationException错 误。在此正确的做法应将以下的代码放到一个try块中处理。这里简单处理 
+                    Stream respStream = httpResp.GetResponseStream();
+
+                    ///返回的内容是Stream形式的，所以可以利用StreamReader类获取GetResponseStream的内容，并以
+
+                    //StreamReader类的Read方法依次读取网页源程序代码每一行的内容，直至行尾（读取的编码格式：UTF8） 
+                    StreamReader respStreamReader = new StreamReader(respStream, Encoding.UTF8);
+
                     byteRead = respStreamReader.Read(cbuffer, 0, 256);
+
+                    while (byteRead != 0)
+                    {
+                        string strResp = new string(cbuffer, 0, byteRead);
+                        strBuff = strBuff + strResp;
+                        byteRead = respStreamReader.Read(cbuffer, 0, 256);
+                    }
+
+                    respStream.Close();
+
                 }
-
-                respStream.Close();
-
+                catch (Exception e)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;  //设置字体颜色为红色
+                    Console.WriteLine(info_isbnservercheckfail);
+                    jsonReadNetworkData();
+                    return null;
+                }
             }
-            catch (Exception e)
+            else
             {
                 Console.ForegroundColor = ConsoleColor.Red;  //设置字体颜色为红色
-                Console.WriteLine("不存在该书籍，请确保书籍为正版");//--------------------======这里也应该随时检查网络
-                //Console.WriteLine(e.ToString());
-               // Console.ReadKey();
+                Console.WriteLine(info_networkcheckfail);
                 jsonReadNetworkData();
-                return null;
             }
             return strBuff;
         }
         #endregion
 
-        #region 功能注册表限制：注册表操作方法
-        /// <summary>
-        /// 判断是否注册true表示已经注册，false表示未注册
-        /// </summary>
-        /// <returns></returns>
-        public static bool registerdoCheck()
-        {
 
-            bool value = false;
-            string username = "[cpu]" + HardWare.judgeHardWard.GetCpu() + "[disk]" + HardWare.judgeHardWard.GetHardDiskID() + "[mac]" + HardWare.judgeHardWard.GetMac() + "[network]" + HardWare.judgeHardWard.GetNetwork();
-            string user = HardWare.judgeHardWard.DesEncrypt(username, "kukusoft.net");//加密字符串
-            string zhucema = "";
-            if (File.Exists(HardWare.judgeHardWard.reigster_codestring))
-            {
-                zhucema = File.ReadAllText(HardWare.judgeHardWard.reigster_codestring.Trim());
-
-                if (HardWare.judgeHardWard.checkCode(HardWare.judgeHardWard.pubkeytxt, zhucema, user))
-                {
-                    value = true;//注册成功
-                }
-                else
-                {
-                    value = false;//注册失败
-                }
-            }
-            else
-            {
-                value = false;
-            }
-            return value;
-        }
-        /// <summary>
-        /// 创建注册表项和键值，初始化使用次数
-        /// </summary>
-        private static void CreateRegedit()
-        {
-            RegistryKey key = Registry.LocalMachine;
-            if (!IsRegeditItemExist())//如果注册表项中找不到键值
-            {
-                RegistryKey software = key.CreateSubKey(@"software\kukusoft");
-                if (!IsRegeditKeyExit())
-                {
-                    RegistryKey softwareKey = key.OpenSubKey(@"software\kukusoft", true); //该项必须已存在
-                    softwareKey.SetValue("registercount", "1");
-                }
-            }
-        }
-        /// <summary>
-        /// 注册表键值加1
-        /// </summary>
-        private static void AddCount()
-        {
-            RegistryKey key = Registry.LocalMachine;
-            int newcount = ReadRegedit() + 1;//试用次数加1
-            RegistryKey softwareKey = key.OpenSubKey(@"software\kukusoft", true); //该项必须已存在
-            softwareKey.SetValue("registercount", newcount);
-        }
-        /// <summary>
-        /// 读取键值:已经扫描了多少本书
-        /// </summary>
-        private static int ReadRegedit()
-        {
-            RegistryKey Key;
-            Key = Registry.LocalMachine;
-            RegistryKey myreg = Key.OpenSubKey(@"software\kukusoft");
-            int value = Convert.ToInt32(myreg.GetValue("registercount").ToString().Trim());
-            myreg.Close();
-            return value;
-        }
-        /// <summary>
-        /// 判断项是否存在
-        /// </summary>
-        /// <returns></returns>
-        private static bool IsRegeditItemExist()
-        {
-            string[] subkeyNames;
-            RegistryKey hkml = Registry.LocalMachine;
-            RegistryKey software = hkml.OpenSubKey(@"software");
-            //RegistryKey software = hkml.OpenSubKey("SOFTWARE", true);  
-            subkeyNames = software.GetSubKeyNames();
-            //取得该项下所有子项的名称的序列，并传递给预定的数组中  
-            foreach (string keyName in subkeyNames)
-            //遍历整个数组  
-            {
-                if (keyName == "kukusoft")
-                //判断子项的名称  
-                {
-                    hkml.Close();
-                    return true;
-                }
-            }
-            hkml.Close();
-            return false;
-        }
-        /// <summary>
-        /// 判断键值是否存在
-        /// </summary>
-        /// <returns></returns>
-        private static bool IsRegeditKeyExit()
-        {
-            string[] subkeyNames;
-            RegistryKey hkml = Registry.LocalMachine;
-            RegistryKey software = hkml.OpenSubKey(@"software\kukusoft");
-            //RegistryKey software = hkml.OpenSubKey("SOFTWARE\\test", true);
-            subkeyNames = software.GetValueNames();
-            //取得该项下所有键值的名称的序列，并传递给预定的数组中
-            foreach (string keyName in subkeyNames)
-            {
-                if (keyName == "registercount") //判断键值的名称
-                {
-                    hkml.Close();
-                    return true;
-                }
-            }
-            hkml.Close();
-            return false;
-        }
-        #endregion
 
         #region mongodb 轻量级数据库操作方法：没有使用的原因是要重新转化到Excel中供用户重新操作，麻烦！
         #endregion
