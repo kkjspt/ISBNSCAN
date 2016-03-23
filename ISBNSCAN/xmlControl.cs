@@ -83,9 +83,10 @@ namespace ISBNSCAN
                                                       select myTarget;
                 foreach (XElement node in myTargetNodes)
                 {
-                    if (node.Element("b_title").Value.Trim() == "" || node.Element("b_title").Value.Trim().Equals("") || node.Element("b_title").Value.Trim().Equals("null"))
+                    if (node.Element("b_title").Value.Trim().Equals(""))
                     {
                         insertData = false;//不存在记录
+                        string b_title = node.Element("b_title").Value.Trim();
                     }
                 }
             }

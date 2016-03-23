@@ -111,7 +111,7 @@ namespace ISBNSCAN
                     string b_catalog = "";//序言目录之类
 
 
-                    if (xmlControl.xmlHaveRecord(xmlControl.localPath, isbn))
+                    if (!xmlControl.xmlHaveRecord(xmlControl.localPath, isbn))
                     {
                         XElement rootNode = XElement.Load(xmlControl.localPath);
                         IEnumerable<XElement> myTargetNodes = from myTarget in rootNode.Descendants("first")
