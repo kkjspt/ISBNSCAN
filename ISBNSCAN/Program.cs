@@ -110,7 +110,7 @@ namespace ISBNSCAN
                     string b_binding = "";//精装还是平装
                     string b_catalog = "";//序言目录之类
 
-
+                    //这里出了问题，无法通过XML的Linq查询出本地是否已经扫描过当前书
                     if (!xmlControl.xmlHaveRecord(xmlControl.localPath, isbn))
                     {
                         XElement rootNode = XElement.Load(xmlControl.localPath);
