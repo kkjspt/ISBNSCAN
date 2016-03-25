@@ -27,7 +27,7 @@ namespace ISBNSCAN
         /// <summary>
         /// 实际是下载远端ISBN查询服务器网页失败提示
         /// </summary>
-        private static string info_isbnservercheckfail = "没有找到这本书的信息！\n1、请确保您的计算机已经接入互联网\n2、请确保您的书籍为正版书籍\n3、请换本书籍试试";
+        private static string info_isbnservercheckfail = "没有找到这本书的信息！\n1、请确保您的计算机已经接入互联网\n2、重新扫描试试3、请确保您的书籍为正版书籍\n4、请换本书籍试试";
         /// <summary>
         /// 没有注册或者是试用期结束
         /// </summary>
@@ -111,12 +111,12 @@ namespace ISBNSCAN
                     string b_catalog = "";//序言目录之类
 
                     //这里出了问题，无法通过XML的Linq查询出本地是否已经扫描过当前书
-                    if (!xmlControl.xmlHaveRecord(xmlControl.localPath, isbn))
+                    if (xmlControl.xmlHaveRecord(xmlControl.localPath, isbn))
                     {
                         XElement rootNode = XElement.Load(xmlControl.localPath);
                         IEnumerable<XElement> myTargetNodes = from myTarget in rootNode.Descendants("first")
-                                                                  //where (myTarget.Element("b_id").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn10").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn13").Value.Trim().Equals(isbn)) && myTarget.HasElements
-                                                              where (myTarget.Element("b_isbn10").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn13").Value.Trim().Equals(isbn))
+                                                              //where (myTarget.Element("b_id").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn10").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn13").Value.Trim().Equals(isbn)) && myTarget.HasElements
+                                                              where (myTarget.Element("b_isbn10").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn13").Value.Trim().Equals(isbn)) && myTarget.HasElements
                                                               select myTarget;
 
                         foreach (XElement node in myTargetNodes)
@@ -249,6 +249,32 @@ namespace ISBNSCAN
                                                b_catalog
                                             );
                         Console.WriteLine("网络查询");
+                        ///向kkjspt.com服务器提交数据
+                        ///只在网络查询的时候提交到线上数据库，本地查询不提交到线上数据库
+                        submitDataToServer.loadUrl("http://www.kkjspt.cn/kukusoft/isbnsearch/V1.0.3/isbnsubmit/",
+                         "b_id=" + b_id +
+                         "&b_isbn13=" + b_isbn13 +
+                         "&b_isbn10=" + b_isbn10 +
+                         "&b_title=" + b_title +
+                         "&b_origin_title=" + b_origin_title +
+                         "&b_alt_title=" + b_alt_title +
+                         "&b_subtitle=" + b_subtitle +
+                         "&b_url=" + b_url +
+                         "&b_alt=" + b_alt +
+                         "&b_images_large=" + b_images_large +
+                         "&b_author=" + b_author +
+                         "&b_publisher=" + b_publisher +
+                         "&b_translator=" + b_translator +
+                         "&b_pubdate=" + b_pubdate +
+                         "&b_price=" + b_price +
+                         "&b_pages=" + b_pages +
+                         "&b_author_intro=" + b_author_intro +
+                         "&b_summary=" + b_summary +
+                         "&b_tags=" + b_tags +
+                         "&b_binding=" + b_binding +
+                         "&b_catalog=" + b_catalog
+                         , Encoding.UTF8
+                    );
 
                     }
 
@@ -266,32 +292,9 @@ namespace ISBNSCAN
                          b_images_medium,
                          b_alt
                          );
-                    ///向kkjspt.com服务器提交数据
-                    submitDataToServer.loadUrl("http://www.kkjspt.cn/kukusoft/isbnsearch/V1.0.3/isbnsubmit/",
-                     "b_id=" + b_id +
-                     "&b_isbn13=" + b_isbn13 +
-                     "&b_isbn10=" + b_isbn10 +
-                     "&b_title=" + b_title +
-                     "&b_origin_title=" + b_origin_title +
-                     "&b_alt_title=" + b_alt_title +
-                     "&b_subtitle=" + b_subtitle +
-                     "&b_url=" + b_url +
-                     "&b_alt=" + b_alt +
-                     "&b_images_large=" + b_images_large +
-                     "&b_author=" + b_author +
-                     "&b_publisher=" + b_publisher +
-                     "&b_translator=" + b_translator +
-                     "&b_pubdate=" + b_pubdate +
-                     "&b_price=" + b_price +
-                     "&b_pages=" + b_pages +
-                     "&b_author_intro=" + b_author_intro +
-                     "&b_summary=" + b_summary +
-                     "&b_tags=" + b_tags +
-                     "&b_binding=" + b_binding +
-                     "&b_catalog=" + b_catalog
-                     , Encoding.UTF8
-                );
+                    
                     Console.ForegroundColor = ConsoleColor.Cyan;  //设置字体颜色为粉天蓝色
+                    Console.WriteLine("书名：{0}",b_title);
                     Console.WriteLine("该书已经成功录入到本地数据表中！");
                     Console.WriteLine("═════════════════════════════════════");
                     jsonReadNetworkData();

@@ -78,17 +78,23 @@ namespace ISBNSCAN
                 //通过传入客户输入或者是扫描枪录入的ISBN码查询本地XML数据文件中是否已经存在该记录
 
                 IEnumerable<XElement> myTargetNodes = from myTarget in rootNode.Descendants("first")
-                                                      //where myTarget.Element("b_id").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn10").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn13").Value.Trim().Equals(isbn) || myTarget.Element("b_title").Value.Trim().Equals("") || myTarget.Element("b_title").Value.Trim().Equals("null")
-                                                      where myTarget.Element("b_isbn13").Value.Trim().Equals(isbn)
+                                                      where (myTarget.Element("b_isbn10").Value.Trim().Equals(isbn) || myTarget.Element("b_isbn13").Value.Trim().Equals(isbn)) && myTarget.HasElements
                                                       select myTarget;
-                foreach (XElement node in myTargetNodes)
+                                
+                //判断xml中是否存在记录
+                if (myTargetNodes.Count<XElement>()== 0)
                 {
-                    if (node.Element("b_title").Value.Trim().Equals(""))
-                    {
-                        insertData = false;//不存在记录
-                        string b_title = node.Element("b_title").Value.Trim();
-                    }
+                    insertData = false;//不存在记录
                 }
+
+                //foreach (XElement node in myTargetNodes)
+                //{
+                //    if (node.Element("b_title").Value.Trim().Equals(""))
+                //    {
+                //        insertData = false;//不存在记录
+                //        string b_title = node.Element("b_title").Value.Trim();
+                //    }
+                //}
             }
             else
             {
